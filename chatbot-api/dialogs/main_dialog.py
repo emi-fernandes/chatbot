@@ -1,4 +1,3 @@
-# dialogs/main_dialog.py
 import re
 import asyncio
 from typing import Optional
@@ -21,9 +20,8 @@ from config import DefaultConfig
 
 CFG = DefaultConfig()
 
-# ---------- util ----------
 IATA_RE = re.compile(r"^[A-Za-z]{3}$")
-DATE_FMTS = ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d")  # dd/mm/aaaa, dd-mm-aaaa, yyyy-mm-dd
+DATE_FMTS = ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d")  
 
 def normalize_iata(x: str) -> str:
     return (x or "").strip().upper()
@@ -53,41 +51,36 @@ def is_restart(t: str) -> bool:
     return (t or "").strip().lower() in {"reiniciar", "reset", "recomeçar"}
 
 def menu_message(text: str = "Como posso ajudar?"):
-    # usa os botões do menu principal
     from bot.main_bot import make_menu
     return make_menu(text)
 
-# ===============================================================
-#                         MAIN DIALOG
-# ===============================================================
 class MainDialog(ComponentDialog):
     def __init__(self, user_state):
         super().__init__(MainDialog.__name__)
 
-        # prompts
+    
         self.add_dialog(TextPrompt("TextPrompt"))
 
-        # ----- fluxo de VOOS -----
         self.add_dialog(WaterfallDialog("VooFlow", [
             self.voo_step_origem,
             self.voo_step_destino,
             self.voo_step_data,
             self.voo_step_confirm,
-            self.voo_step_nome,     # pergunta o nome (se for salvar no BD)
+            self.voo_step_nome,     
             self.voo_step_busca,
         ]))
 
-        # ----- fluxo de HOTÉIS -----
+    
         self.add_dialog(WaterfallDialog("HotelFlow", [
             self.hotel_step_cidade,
             self.hotel_step_checkin,
             self.hotel_step_checkout,
             self.hotel_step_confirm,
-            self.hotel_step_nome,   # pergunta o nome (se for salvar no BD)
+            self.hotel_step_nome,   
             self.hotel_step_busca,
         ]))
 
-        # ----- fluxo de CONSULTAS/CANCELAMENTOS -----
+     
         self.add_dialog(WaterfallDialog("ManageFlow", [
             self.manage_step_tipo,
             self.manage_step_listar,
@@ -95,11 +88,10 @@ class MainDialog(ComponentDialog):
             self.manage_step_cancelar,
         ]))
 
-        # ----- raiz/roteador -----
+    
         self.add_dialog(WaterfallDialog("Root", [self.route_step]))
         self.initial_dialog_id = "Root"
 
-    # requerido pelo MainBot
     async def run(self, turn_context: TurnContext, accessor: StatePropertyAccessor):
         txt = (turn_context.activity.text or "").strip()
         if is_cancel(txt):
@@ -116,12 +108,10 @@ class MainDialog(ComponentDialog):
         if result.status == DialogTurnStatus.Empty:
             await dc.begin_dialog(self.id)
 
-    # ------------------ ROOT / ROTEAMENTO ------------------
     async def route_step(self, step: WaterfallStepContext):
         text = (step.context.activity.text or "").strip()
         tokens = text.split()
 
-        # Atalhos: "voo ORIGEM DESTINO DATA"
         if len(tokens) >= 1 and tokens[0].lower() == "voo":
             if len(tokens) >= 4:
                 step.values["origem"] = tokens[1]
@@ -129,11 +119,10 @@ class MainDialog(ComponentDialog):
                 step.values["data_raw"] = tokens[3]
             return await step.begin_dialog("VooFlow")
 
-        # Atalhos: "hotel CIDADE CHECKIN CHECKOUT"
         if len(tokens) >= 1 and tokens[0].lower() == "hotel":
             if len(tokens) >= 4:
                 if len(tokens) > 4:
-                    # cidade com espaços
+                
                     step.values["cidade"] = " ".join(tokens[1:-2])
                     step.values["checkin_raw"] = tokens[-2]
                     step.values["checkout_raw"] = tokens[-1]
@@ -143,12 +132,11 @@ class MainDialog(ComponentDialog):
                     step.values["checkout_raw"] = tokens[3]
             return await step.begin_dialog("HotelFlow")
 
-        # Consultas/Cancelamentos
         t = text.lower()
         if t in {"consultas", "consulta", "cancelamentos", "cancelamento", "📋 consultas e cancelamentos"}:
             return await step.begin_dialog("ManageFlow")
 
-        # Ajuda
+
         if t in {"ajuda", "/ajuda", "help", "/help"}:
             await step.context.send_activity(
                 "Comandos:\n"
@@ -160,12 +148,12 @@ class MainDialog(ComponentDialog):
             await step.context.send_activity(menu_message("O que deseja fazer agora?"))
             return await step.end_dialog()
 
-        # Menu
+    
         if t in {"menu", "/menu"}:
             await step.context.send_activity(menu_message())
             return await step.end_dialog()
 
-        # Mensagem padrão
+     
         await step.context.send_activity(
             "Digite:\n"
             "• `voo ORIGEM DESTINO DATA(DD/MM/AAAA)`\n"
@@ -175,7 +163,7 @@ class MainDialog(ComponentDialog):
         await step.context.send_activity(menu_message())
         return await step.end_dialog()
 
-    # ------------------ VOOS ------------------
+
     async def voo_step_origem(self, step: WaterfallStepContext):
         v = normalize_iata(step.values.get("origem", ""))
         if v and IATA_RE.match(v):
@@ -215,7 +203,7 @@ class MainDialog(ComponentDialog):
         return await step.prompt("TextPrompt", PromptOptions(prompt=msg))
 
     async def voo_step_nome(self, step: WaterfallStepContext):
-        # recebe "sim/não" da confirmação
+        
         if (step.result or "").strip().lower() not in {"sim", "s", "yes", "y"}:
             await step.context.send_activity("❌ Busca cancelada.")
             await step.context.send_activity(menu_message())
@@ -231,7 +219,7 @@ class MainDialog(ComponentDialog):
             return await step.next("Cliente")
 
     async def voo_step_busca(self, step: WaterfallStepContext):
-        # guarda o nome, se veio do passo anterior
+    
         if step.result is not None:
             name = (step.result or "").strip() or "Cliente"
             step.values["passengerName"] = name
@@ -276,7 +264,6 @@ class MainDialog(ComponentDialog):
 
         return await step.end_dialog()
 
-    # ------------------ HOTÉIS ------------------
     async def hotel_step_cidade(self, step: WaterfallStepContext):
         v = normalize_city(step.values.get("cidade", ""))
         if v:
@@ -381,7 +368,6 @@ class MainDialog(ComponentDialog):
 
         return await step.end_dialog()
 
-    # ------------------ CONSULTAS / CANCELAMENTOS ------------------
     async def manage_step_tipo(self, step: WaterfallStepContext):
         msg = MessageFactory.text("Você quer ver/cancelar **voos** ou **hotéis**?")
         msg.suggested_actions = SuggestedActions(actions=[
@@ -404,7 +390,7 @@ class MainDialog(ComponentDialog):
 
         step.values["tipo"] = choice
 
-        # busca lista no back-end
+    
         path = "/reservas/voos" if choice == "voos" else "/reservas/hoteis"
         items = await self._call_get(path, {})
         if isinstance(items, str):
@@ -467,7 +453,7 @@ class MainDialog(ComponentDialog):
 
         return await step.end_dialog()
 
-    # ------------------ HTTP HELPERS ------------------
+
     async def _call_get(self, path: str, params: dict):
         url = f"{CFG.JAVA_API_BASE}{path}"
         try:
@@ -490,7 +476,7 @@ class MainDialog(ComponentDialog):
         url = f"{CFG.JAVA_API_BASE}{path}"
         try:
             async with aiohttp.ClientSession() as s:
-                async with s.post(url, data=data, timeout=20) as r:   # <--- form-urlencoded
+                async with s.post(url, data=data, timeout=20) as r:   
                     txt = await r.text()
                     print("POST(form)", path, r.status, txt)
                     if r.status in (200, 201):
