@@ -27,27 +27,26 @@ class MainBot(ActivityHandler):
 
     async def on_members_added_activity(self, members_added, turn_context: TurnContext):
         await turn_context.send_activity(
-        "Olá! Posso buscar **voos** e **hotéis**.\n"
-        "Exemplos:\n"
-        "• `voo GIG GRU 02/11/2025`\n"
-        "• `hotel Lisboa 10/11/2025 12/11/2025`"
-    )
+            "Olá! Posso buscar **voos** e **hotéis**.\n"
+            "Exemplos:\n"
+            "• `voo GIG GRU 02/11/2025`\n"
+            "• `hotel Lisboa 10/11/2025 12/11/2025`"
+        )
         await turn_context.send_activity(make_menu())
 
     async def on_message_activity(self, turn_context: TurnContext):
         text = (turn_context.activity.text or "").strip().lower()
+
         if text in ("menu", "/menu"):
             await turn_context.send_activity(make_menu())
             return
         if text in ("ajuda", "/ajuda", "help", "/help"):
             await turn_context.send_activity(
-            "Comandos:\n"
-            "• `voo ORIGEM DESTINO DATA(DD/MM/AAAA)`\n"
-            "• `hotel CIDADE CHECKIN(DD/MM/AAAA) CHECKOUT(DD/MM/AAAA)`\n"
-            "• `menu` para ver botões\n"
-            "• `cancelar` para encerrar o fluxo\n"
-            "• `reiniciar` para recomeçar"
-        )
+                "Comandos:\n"
+                "• `voo ORIGEM DESTINO DATA(DD/MM/AAAA)`\n"
+                "• `hotel CIDADE CHECKIN(DD/MM/AAAA) CHECKOUT(DD/MM/AAAA)`\n"
+                "• `menu` para ver botões • `cancelar` • `reiniciar`"
+            )
             await turn_context.send_activity(make_menu("O que deseja fazer agora?"))
             return
 

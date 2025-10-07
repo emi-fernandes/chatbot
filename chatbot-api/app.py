@@ -15,6 +15,7 @@ from config import DefaultConfig
 from dialogs.main_dialog import MainDialog
 
 CONFIG = DefaultConfig()
+print(f"[BOT] JAVA_API_BASE={CONFIG.JAVA_API_BASE} SAVE_TO_DB={CONFIG.SAVE_TO_DB}")
 
 SETTINGS = BotFrameworkAdapterSettings(CONFIG.APP_ID or None, CONFIG.APP_PASSWORD or None)
 ADAPTER = BotFrameworkAdapter(SETTINGS)

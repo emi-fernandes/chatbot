@@ -12,8 +12,7 @@ from config import DefaultConfig
 CFG = DefaultConfig()
 
 IATA_RE = re.compile(r"^[A-Za-z]{3}$")
-
-DATE_FMTS = ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d")
+DATE_FMTS = ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d") 
 
 def normalize_iata(x: str) -> str: return (x or "").strip().upper()
 def normalize_city(x: str) -> str: return (x or "").strip().title()
@@ -43,7 +42,6 @@ def menu_message(text: str = "Como posso ajudar?"):
 class MainDialog(ComponentDialog):
     def __init__(self, user_state):
         super().__init__(MainDialog.__name__)
-
         self.add_dialog(TextPrompt("TextPrompt"))
 
         self.add_dialog(WaterfallDialog("VooFlow", [
@@ -65,7 +63,6 @@ class MainDialog(ComponentDialog):
         self.add_dialog(WaterfallDialog("Root", [ self.route_step ]))
         self.initial_dialog_id = "Root"
 
-
     async def run(self, turn_context: TurnContext, accessor: StatePropertyAccessor):
         txt = (turn_context.activity.text or "").strip()
         if is_cancel(txt):
@@ -81,7 +78,6 @@ class MainDialog(ComponentDialog):
         if result.status == DialogTurnStatus.Empty:
             await dc.begin_dialog(self.id)
 
-
     async def route_step(self, step: WaterfallStepContext):
         text = (step.context.activity.text or "").strip()
         tokens = text.split()
@@ -90,12 +86,11 @@ class MainDialog(ComponentDialog):
             if len(tokens) >= 4:
                 step.values["origem"]  = tokens[1]
                 step.values["destino"] = tokens[2]
-                step.values["data_raw"]= tokens[3]   
+                step.values["data_raw"]= tokens[3]
             return await step.begin_dialog("VooFlow")
 
         if len(tokens) >= 1 and tokens[0].lower() == "hotel":
             if len(tokens) >= 4:
-              
                 if len(tokens) > 4:
                     step.values["cidade"]  = " ".join(tokens[1:-2])
                     step.values["checkin_raw"]  = tokens[-2]
@@ -115,7 +110,7 @@ class MainDialog(ComponentDialog):
         )
         await step.context.send_activity(menu_message())
         return await step.end_dialog()
-
+    
     async def voo_step_origem(self, step: WaterfallStepContext):
         v = normalize_iata(step.values.get("origem",""))
         if v and IATA_RE.match(v): return await step.next(v)
@@ -130,8 +125,7 @@ class MainDialog(ComponentDialog):
     async def voo_step_data(self, step: WaterfallStepContext):
         step.values["destino"] = normalize_iata(step.result or step.values.get("destino",""))
         raw = step.values.get("data_raw","")
-        if raw:
-            return await step.next(raw)
+        if raw: return await step.next(raw)
         return await step.prompt("TextPrompt", PromptOptions(prompt=MessageFactory.text("Data (**DD/MM/AAAA**)?")))
 
     async def voo_step_confirm(self, step: WaterfallStepContext):
@@ -158,7 +152,10 @@ class MainDialog(ComponentDialog):
             await step.context.send_activity(menu_message())
             return await step.end_dialog()
 
-        o, d, date_iso = step.values["origem"], step.values["destino"], step.values["data_iso"]
+        o = step.values["origem"]
+        d = step.values["destino"]
+        date_iso = step.values["data_iso"]
+
         offers = await self._call_get("/voos/search", {"from": o, "to": d, "date": date_iso})
         if isinstance(offers, str):
             await step.context.send_activity(offers); return await step.end_dialog()
@@ -170,8 +167,25 @@ class MainDialog(ComponentDialog):
             for o_ in offers[:3]
         ]
         await step.context.send_activity("Ofertas de voo:\n" + "\n".join(lines))
-        return await step.end_dialog()
 
+        if CFG.SAVE_TO_DB:
+            best = offers[0]
+            payload = {
+                "origin": o,
+                "destination": d,
+                "date": date_iso,
+                "airline": best.get("airline", "DEMO"),
+                "priceBRL": str(best.get("priceBRL", "0")),
+                "passengerName": (step.context.activity.from_property.name or "Cliente")
+                    if getattr(step.context.activity, "from_property", None) else "Cliente"
+            }
+            res = await self._call_post("/reservas/voos", payload)
+            if isinstance(res, dict) and res.get("id"):
+                await step.context.send_activity(f"✅ Reserva de **voo** criada! ID **{res['id']}**.")
+            else:
+                await step.context.send_activity(res if isinstance(res, str) else "⚠️ Falha ao salvar a reserva de voo.")
+
+        return await step.end_dialog()
 
     async def hotel_step_cidade(self, step: WaterfallStepContext):
         v = normalize_city(step.values.get("cidade",""))
@@ -199,8 +213,8 @@ class MainDialog(ComponentDialog):
             await step.context.send_activity("⚠️ Datas inválidas. Use **DD/MM/AAAA** e garanta check-out > check-in.")
             return await step.end_dialog()
 
-        step.values["checkin_br"]  = fmt_br(dt_in)
-        step.values["checkout_br"] = fmt_br(dt_out)
+        step.values["checkin_br"]   = fmt_br(dt_in)
+        step.values["checkout_br"]  = fmt_br(dt_out)
         step.values["checkin_iso"]  = fmt_iso(dt_in)
         step.values["checkout_iso"] = fmt_iso(dt_out)
 
@@ -218,7 +232,10 @@ class MainDialog(ComponentDialog):
             await step.context.send_activity(menu_message())
             return await step.end_dialog()
 
-        city, ci_iso, co_iso = step.values["cidade"], step.values["checkin_iso"], step.values["checkout_iso"]
+        city   = step.values["cidade"]
+        ci_iso = step.values["checkin_iso"]
+        co_iso = step.values["checkout_iso"]
+
         offers = await self._call_get("/hoteis/search", {"city": city, "checkin": ci_iso, "checkout": co_iso})
         if isinstance(offers, str):
             await step.context.send_activity(offers); return await step.end_dialog()
@@ -230,6 +247,24 @@ class MainDialog(ComponentDialog):
             for o_ in offers[:3]
         ]
         await step.context.send_activity("Ofertas de hotel:\n" + "\n".join(lines))
+
+        if CFG.SAVE_TO_DB:
+            best = offers[0]
+            payload = {
+                "city": city,
+                "checkin": ci_iso,
+                "checkout": co_iso,
+                "hotelName": best.get("name", "Hotel"),
+                "priceBRL": str(best.get("priceBRL", "0")),
+                "guestName": (step.context.activity.from_property.name or "Cliente")
+                    if getattr(step.context.activity, "from_property", None) else "Cliente"
+            }
+            res = await self._call_post("/reservas/hoteis", payload)
+            if isinstance(res, dict) and res.get("id"):
+                await step.context.send_activity(f"✅ Reserva de **hotel** criada! ID **{res['id']}**.")
+            else:
+                await step.context.send_activity(res if isinstance(res, str) else "⚠️ Falha ao salvar a reserva de hotel.")
+
         return await step.end_dialog()
 
     async def _call_get(self, path: str, params: dict):
@@ -246,5 +281,25 @@ class MainDialog(ComponentDialog):
             return "⚠️ API indisponível em {0}. Verifique se o back-end está rodando.".format(CFG.JAVA_API_BASE)
         except asyncio.TimeoutError:
             return "⚠️ Tempo esgotado consultando a API."
+        except Exception as e:
+            return f"⚠️ Falha HTTP: {e}"
+
+    async def _call_post(self, path: str, data: dict):
+        import asyncio
+        from aiohttp import ClientConnectorError
+        url = f"{CFG.JAVA_API_BASE}{path}"
+        try:
+            async with aiohttp.ClientSession() as s:
+                async with s.post(url, data=data, timeout=20) as r:
+                    if r.status in (200, 201):
+                        try:
+                            return await r.json()
+                        except Exception:
+                            return {"status": r.status}
+                    return f"⚠️ Erro {r.status} no POST {path}."
+        except ClientConnectorError:
+            return "⚠️ API indisponível em {0}. Verifique se o back-end está rodando.".format(CFG.JAVA_API_BASE)
+        except asyncio.TimeoutError:
+            return "⚠️ Tempo esgotado chamando a API."
         except Exception as e:
             return f"⚠️ Falha HTTP: {e}"
