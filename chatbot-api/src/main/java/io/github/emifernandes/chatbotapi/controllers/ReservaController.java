@@ -50,7 +50,6 @@ public class ReservaController {
         return ResponseEntity.created(URI.create("/reservas/voos/"+saved.getId())).body(saved);
     }
 
-    // ---- HOTEIS ----
     @GetMapping("/hoteis")
     public ResponseEntity<List<ReservaHotel>> listHotel() { return ResponseEntity.ok(hotelRepo.findAll()); }
 

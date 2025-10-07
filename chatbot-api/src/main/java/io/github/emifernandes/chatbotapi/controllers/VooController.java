@@ -24,7 +24,7 @@ public class VooController {
         this.repo = repo; this.service = service;
     }
 
-    // CRUD simples (útil p/ salvar um voo "preferido")
+    
     @GetMapping public ResponseEntity<List<Voo>> list() { return ResponseEntity.ok(repo.findAll()); }
 
     @GetMapping("/{id}")
@@ -38,7 +38,6 @@ public class VooController {
         return ResponseEntity.created(URI.create("/voos/" + saved.getId())).body(saved);
     }
 
-    // Busca de ofertas (usada pelo bot)
     @GetMapping("/search")
     public ResponseEntity<List<VooOffer>> search(@RequestParam String from,
                                                  @RequestParam String to,
