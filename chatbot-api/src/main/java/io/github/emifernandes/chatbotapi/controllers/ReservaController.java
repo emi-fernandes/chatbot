@@ -23,7 +23,6 @@ public class ReservaController {
         this.vooRepo = vooRepo; this.hotelRepo = hotelRepo;
     }
 
-    // ---- VOOS ----
     @GetMapping("/voos")
     public ResponseEntity<List<ReservaVoo>> listVoo() { return ResponseEntity.ok(vooRepo.findAll()); }
 

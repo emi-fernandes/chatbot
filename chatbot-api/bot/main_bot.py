@@ -36,8 +36,6 @@ class MainBot(ActivityHandler):
 
     async def on_message_activity(self, turn_context: TurnContext):
         text = (turn_context.activity.text or "").strip().lower()
-
-        # atalhos diretos do bot (não entram no diálogo)
         if text in ("menu", "/menu"):
             await turn_context.send_activity(make_menu())
             return

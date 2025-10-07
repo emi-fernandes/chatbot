@@ -13,7 +13,6 @@ CFG = DefaultConfig()
 
 IATA_RE = re.compile(r"^[A-Za-z]{3}$")
 
-# Aceita 10/11/2025, 10-11-2025, 2025-11-10
 DATE_FMTS = ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d")
 
 def normalize_iata(x: str) -> str: return (x or "").strip().upper()
@@ -28,10 +27,10 @@ def parse_date_any(s: str) -> datetime | None:
             continue
     return None
 
-def fmt_br(dt: datetime) -> str:  # dd/mm/aaaa
+def fmt_br(dt: datetime) -> str:  
     return dt.strftime("%d/%m/%Y")
 
-def fmt_iso(dt: datetime) -> str:  # yyyy-mm-dd (para a API Java)
+def fmt_iso(dt: datetime) -> str:  
     return dt.strftime("%Y-%m-%d")
 
 def is_cancel(t: str) -> bool: return (t or "").strip().lower() in {"cancelar", "cancel", "sair"}
@@ -66,7 +65,7 @@ class MainDialog(ComponentDialog):
         self.add_dialog(WaterfallDialog("Root", [ self.route_step ]))
         self.initial_dialog_id = "Root"
 
-    # requerido pelo MainBot
+
     async def run(self, turn_context: TurnContext, accessor: StatePropertyAccessor):
         txt = (turn_context.activity.text or "").strip()
         if is_cancel(txt):
@@ -82,7 +81,7 @@ class MainDialog(ComponentDialog):
         if result.status == DialogTurnStatus.Empty:
             await dc.begin_dialog(self.id)
 
-    # ---------- ROOT ----------
+
     async def route_step(self, step: WaterfallStepContext):
         text = (step.context.activity.text or "").strip()
         tokens = text.split()
@@ -91,12 +90,12 @@ class MainDialog(ComponentDialog):
             if len(tokens) >= 4:
                 step.values["origem"]  = tokens[1]
                 step.values["destino"] = tokens[2]
-                step.values["data_raw"]= tokens[3]   # em dd/mm/aaaa (ou outro)
+                step.values["data_raw"]= tokens[3]   
             return await step.begin_dialog("VooFlow")
 
         if len(tokens) >= 1 and tokens[0].lower() == "hotel":
             if len(tokens) >= 4:
-                # cidade pode ter espaços: "Rio de Janeiro 10/11/2025 12/11/2025"
+              
                 if len(tokens) > 4:
                     step.values["cidade"]  = " ".join(tokens[1:-2])
                     step.values["checkin_raw"]  = tokens[-2]
@@ -117,7 +116,6 @@ class MainDialog(ComponentDialog):
         await step.context.send_activity(menu_message())
         return await step.end_dialog()
 
-    # ---------- VOOS ----------
     async def voo_step_origem(self, step: WaterfallStepContext):
         v = normalize_iata(step.values.get("origem",""))
         if v and IATA_RE.match(v): return await step.next(v)
@@ -174,7 +172,7 @@ class MainDialog(ComponentDialog):
         await step.context.send_activity("Ofertas de voo:\n" + "\n".join(lines))
         return await step.end_dialog()
 
-    # ---------- HOTÉIS ----------
+
     async def hotel_step_cidade(self, step: WaterfallStepContext):
         v = normalize_city(step.values.get("cidade",""))
         if v: return await step.next(v)
@@ -234,7 +232,6 @@ class MainDialog(ComponentDialog):
         await step.context.send_activity("Ofertas de hotel:\n" + "\n".join(lines))
         return await step.end_dialog()
 
-    # ---------- HTTP helpers ----------
     async def _call_get(self, path: str, params: dict):
         import asyncio
         from aiohttp import ClientConnectorError
