@@ -5,10 +5,12 @@ import io.github.emifernandes.chatbotapi.repository.VooRepository;
 import io.github.emifernandes.chatbotapi.services.VooSearchService;
 import io.github.emifernandes.chatbotapi.services.dto.VooOffer;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -22,10 +24,8 @@ public class VooController {
         this.repo = repo; this.service = service;
     }
 
-    @GetMapping
-    public ResponseEntity<List<Voo>> list() {
-        return ResponseEntity.ok(repo.findAll());
-    }
+    // CRUD simples (útil p/ salvar um voo "preferido")
+    @GetMapping public ResponseEntity<List<Voo>> list() { return ResponseEntity.ok(repo.findAll()); }
 
     @GetMapping("/{id}")
     public ResponseEntity<Voo> get(@PathVariable Long id) {
@@ -38,10 +38,11 @@ public class VooController {
         return ResponseEntity.created(URI.create("/voos/" + saved.getId())).body(saved);
     }
 
+    // Busca de ofertas (usada pelo bot)
     @GetMapping("/search")
     public ResponseEntity<List<VooOffer>> search(@RequestParam String from,
                                                  @RequestParam String to,
-                                                 @RequestParam String date) {
-        return ResponseEntity.ok(service.search(from, to, date));
+                                                 @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(service.search(from.toUpperCase(), to.toUpperCase(), date.toString()));
     }
 }

@@ -1,8 +1,10 @@
 package io.github.emifernandes.chatbotapi.services.dto;
 
+import java.math.BigDecimal;
+
 public record VooOffer(
         String airline,
-        double priceBRL,
+        BigDecimal priceBRL,
         String departure,
         String arrival
 ) {}

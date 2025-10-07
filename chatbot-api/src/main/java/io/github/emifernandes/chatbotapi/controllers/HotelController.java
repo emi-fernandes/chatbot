@@ -5,11 +5,13 @@ import io.github.emifernandes.chatbotapi.repository.HotelRepository;
 import io.github.emifernandes.chatbotapi.services.HotelSearchService;
 import io.github.emifernandes.chatbotapi.services.dto.HotelOffer;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -23,10 +25,7 @@ public class HotelController {
         this.repo = repo; this.service = service;
     }
 
-    @GetMapping
-    public ResponseEntity<List<Hotel>> list() {
-        return ResponseEntity.ok(repo.findAll());
-    }
+    @GetMapping public ResponseEntity<List<Hotel>> list() { return ResponseEntity.ok(repo.findAll()); }
 
     @GetMapping("/{id}")
     public ResponseEntity<Hotel> get(@PathVariable Long id) {
@@ -35,7 +34,7 @@ public class HotelController {
 
     @PostMapping
     public ResponseEntity<Hotel> create(@Valid @RequestBody Hotel hotel) {
-        if (hotel.getCheckout().compareTo(hotel.getCheckin()) <= 0) {
+        if (hotel.getCheckout().isBefore(hotel.getCheckin()) || hotel.getCheckout().isEqual(hotel.getCheckin())) {
             return ResponseEntity.badRequest().build();
         }
         if (hotel.getPriceBRL() == null) hotel.setPriceBRL(BigDecimal.ZERO);
@@ -45,9 +44,9 @@ public class HotelController {
 
     @GetMapping("/search")
     public ResponseEntity<List<HotelOffer>> search(@RequestParam String city,
-                                                   @RequestParam String checkin,
-                                                   @RequestParam String checkout) {
-        if (checkout.compareTo(checkin) <= 0) return ResponseEntity.badRequest().build();
-        return ResponseEntity.ok(service.search(city, checkin, checkout));
+                                                   @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkin,
+                                                   @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkout) {
+        if (!checkout.isAfter(checkin)) return ResponseEntity.badRequest().build();
+        return ResponseEntity.ok(service.search(city, checkin.toString(), checkout.toString()));
     }
 }
