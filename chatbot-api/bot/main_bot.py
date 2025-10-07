@@ -3,15 +3,15 @@ from botbuilder.dialogs import Dialog
 from botbuilder.schema import SuggestedActions, CardAction, ActionTypes
 
 def make_menu(text: str = "Como posso ajudar?"):
-    msg = MessageFactory.text(text)
-    msg.suggested_actions = SuggestedActions(
+    return MessageFactory.suggested_actions(
         actions=[
-            CardAction(title="Buscar voos ✈️",   type=ActionTypes.im_back, value="voo"),
-            CardAction(title="Buscar hotéis 🏨", type=ActionTypes.im_back, value="hotel"),
-            CardAction(title="Ajuda ❓",        type=ActionTypes.im_back, value="ajuda"),
-        ]
+            CardAction(title="✈️ Buscar voos",  type=ActionTypes.im_back, value="voo"),
+            CardAction(title="🏨 Buscar hotéis", type=ActionTypes.im_back, value="hotel"),
+            CardAction(title="📋 Consultas e cancelamentos", type=ActionTypes.im_back, value="consultas"),
+            CardAction(title="❓ Ajuda", type=ActionTypes.im_back, value="ajuda"),
+        ],
+        text=text,
     )
-    return msg
 
 class MainBot(ActivityHandler):
     def __init__(self, dialog: Dialog, conversation_state: ConversationState, user_state: UserState):
