@@ -1,4 +1,3 @@
-# app.py
 import sys, traceback
 from datetime import datetime
 from aiohttp import web
@@ -9,10 +8,9 @@ from botbuilder.core import (
 )
 from botbuilder.core.integration import aiohttp_error_middleware
 from botbuilder.schema import Activity, ActivityTypes
-
-from bot.main_bot import MainBot
-from config import DefaultConfig
-from dialogs.main_dialog import MainDialog
+from bot.config import DefaultConfig
+from bot.main_bot import MainBot        
+from bot.dialogs.main_dialog import MainDialog
 
 CONFIG = DefaultConfig()
 print(f"[BOT] JAVA_API_BASE={CONFIG.JAVA_API_BASE} SAVE_TO_DB={CONFIG.SAVE_TO_DB}")
@@ -38,7 +36,7 @@ MEMORY = MemoryStorage()
 CONVERSATION_STATE = ConversationState(MEMORY)
 USER_STATE = UserState(MEMORY)
 
-DIALOG = MainDialog(USER_STATE)
+DIALOG = MainDialog()
 BOT = MainBot(dialog=DIALOG, conversation_state=CONVERSATION_STATE, user_state=USER_STATE)
 
 async def messages(req: Request) -> Response:

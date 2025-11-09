@@ -21,15 +21,20 @@ public class VooController {
     private final VooSearchService service;
 
     public VooController(VooRepository repo, VooSearchService service) {
-        this.repo = repo; this.service = service;
+        this.repo = repo;
+        this.service = service;
     }
 
-    
-    @GetMapping public ResponseEntity<List<Voo>> list() { return ResponseEntity.ok(repo.findAll()); }
+    @GetMapping
+    public ResponseEntity<List<Voo>> list() {
+        return ResponseEntity.ok(repo.findAll());
+    }
 
     @GetMapping("/{id}")
     public ResponseEntity<Voo> get(@PathVariable Long id) {
-        return repo.findById(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+        return repo.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
@@ -42,6 +47,8 @@ public class VooController {
     public ResponseEntity<List<VooOffer>> search(@RequestParam String from,
                                                  @RequestParam String to,
                                                  @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ResponseEntity.ok(service.search(from.toUpperCase(), to.toUpperCase(), date.toString()));
+        return ResponseEntity.ok(
+                service.search(from.toUpperCase(), to.toUpperCase(), date.toString())
+        );
     }
 }

@@ -1,6 +1,6 @@
 from botbuilder.dialogs import ComponentDialog, WaterfallDialog, WaterfallStepContext, TextPrompt, PromptOptions
 from botbuilder.core import MessageFactory
-from ..core.http_client import create_booking
+from bot.core.http_client import create_booking
 
 class HotelDialog(ComponentDialog):
     def __init__(self, dialog_id: str = "HOTEL_DIALOG"):

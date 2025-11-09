@@ -8,8 +8,10 @@ import java.util.Map;
 @RestController
 @RequestMapping("/health")
 public class HealthController {
+
     @GetMapping
-    public ResponseEntity<Map<String, Object>> health() {
-        return ResponseEntity.ok(Map.of("status", "UP"));
+    public ResponseEntity<String> health() {
+        return ResponseEntity.ok("ok");
     }
 }
+
