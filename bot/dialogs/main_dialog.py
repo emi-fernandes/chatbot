@@ -1,108 +1,96 @@
-
-from __future__ import annotations
-
-import unicodedata
-from typing import Optional
-
-from botbuilder.core import MessageFactory, TurnContext
+from botbuilder.core import MessageFactory
 from botbuilder.dialogs import (
     ComponentDialog,
+    DialogSet,
+    DialogTurnStatus,
     WaterfallDialog,
     WaterfallStepContext,
     DialogTurnResult,
-    TextPrompt,
-    DialogTurnStatus,
 )
 
+from .flight_dialog import FlightDialog
+from .hotel_dialog import HotelDialog
+from .consulta_dialog import ConsultaDialog
 
-from bot.dialogs.flight_dialog import FlightDialog
-from bot.dialogs.hotel_dialog import HotelDialog
-from bot.dialogs.smalltalk_dialog import SmalltalkDialog
 
-
-def _normalize(text: Optional[str]) -> str:
-    """minúsculas + remove acentos + tira espaços extras"""
-    if not text:
-        return ""
-    text = text.strip().lower()
-    text = "".join(
-        c for c in unicodedata.normalize("NFD", text) if unicodedata.category(c) != "Mn"
-    )
-    return " ".join(text.split())
+def _norm(s): 
+    return (s or "").strip().lower()
 
 
 class MainDialog(ComponentDialog):
-    """
-    Roteador de intents simples:
-      - 'voo', 'voos' -> FlightDialog
-      - 'hotel', 'hoteis', 'reservar hotel' -> HotelDialog
-      - small talk (oi, ola, obrigado...) -> SmalltalkDialog
-      - 'menu'/'ajuda' -> mensagens curtas + encerra para o MainBot exibir o menu
-      - desconhecido -> dica de uso e encerra
-    """
-
     def __init__(self):
         super().__init__(MainDialog.__name__)
 
-        
-        self.add_dialog(TextPrompt("text"))
+        # instâncias (guardar para usar .id)
+        self.consulta_dialog = ConsultaDialog()
+        self.flight_dialog   = FlightDialog()
+        self.hotel_dialog    = HotelDialog()
 
-        self.add_dialog(FlightDialog())     
-        self.add_dialog(HotelDialog())      
-        self.add_dialog(SmalltalkDialog())  
+        # registra subdiálogos
+        self.add_dialog(self.consulta_dialog)
+        self.add_dialog(self.flight_dialog)
+        self.add_dialog(self.hotel_dialog)
 
-        self.add_dialog(
-            WaterfallDialog(
-                "wf",
-                [
-                    self._route_step,
-                    self._final_step,
-                ],
-            )
-        )
+        # diálogo raiz (roteador)
+        self.add_dialog(WaterfallDialog("WF", [self._route_step]))
+        self.initial_dialog_id = "WF"
 
-        self.initial_dialog_id = "wf"
+    # >>> necessário pro MainBot chamar self.dialog.run(...)
+    async def run(self, turn_context, accessor):
+        ds = DialogSet(accessor)
+        ds.add(self)
+        dc = await ds.create_context(turn_context)
+        res = await dc.continue_dialog()
+        if res.status == DialogTurnStatus.Empty:
+            await dc.begin_dialog(self.id)
 
-   
     async def _route_step(self, step: WaterfallStepContext) -> DialogTurnResult:
-        text = _normalize(step.context.activity.text)
+        text  = _norm(getattr(step.context.activity, "text", None))
+        value = getattr(step.context.activity, "value", None)
+        if isinstance(value, str):
+            value = _norm(value)
+        msg = value or text
 
-      
-        if text in {"menu", "/menu"}:
-            await step.context.send_activity("Abrindo menu…")
+        # --- consultas / cancelamentos ---
+        if any(k in msg for k in {
+            "consulta","consultas","cancelar","cancelamento","cancelar reserva","ver reserva","minha reserva"
+        }):
+            return await step.begin_dialog(self.consulta_dialog.id)
+
+        # --- voos ---
+        if msg in {"voo","voos","passagem","passagens","flight","flights"}:
+            return await step.begin_dialog(self.flight_dialog.id)
+
+        # --- hotéis ---
+        if msg in {"hotel","hoteis","hotéis","reserva de hotel","hospedagem"}:
+            return await step.begin_dialog(self.hotel_dialog.id)
+
+        # --- menu ---
+        if msg in {"menu","/menu"}:
+            await step.context.send_activity(MessageFactory.suggested_actions(
+                actions=[
+                    {"type": "imBack", "title": "✈️ Buscar voos", "value": "voo"},
+                    {"type": "imBack", "title": "🏨 Buscar hotéis", "value": "hotel"},
+                    {"type": "imBack", "title": "📋 Consultas/Cancelamentos", "value": "consultas"},
+                    {"type": "imBack", "title": "❓ Ajuda", "value": "ajuda"},
+                ],
+                text="Como posso ajudar?",
+            ))
             return await step.end_dialog()
-        if text in {"ajuda", "/ajuda", "help", "/help"}:
+
+        # --- ajuda ---
+        if msg in {"ajuda","/ajuda","help","/help"}:
             await step.context.send_activity(
                 "Posso buscar **voos** e **hotéis**.\n"
                 "Exemplos:\n"
-                "• `voo GIG GRU 02/11/2025`\n"
-                "• `hotel Lisboa 10/11/2025 12/11/2025`"
+                "• voo GIG GRU 2025-11-02\n"
+                "• hotel Lisboa 2025-11-10 2025-11-12\n"
+                "Ou digite *menu* para ver os botões."
             )
             return await step.end_dialog()
-        if text in {"cancelar", "/cancelar", "reiniciar", "/reiniciar"}:
-            await step.context.send_activity("Conversa reiniciada.")
-            return await step.cancel_all_dialogs()
 
-       
-        if any(k in text for k in {"voo", "voos", "passagem", "aereo", "aéreo"}):
-            return await step.begin_dialog(FlightDialog.__name__)
-
-        if any(k in text for k in {"hotel", "hoteis", "hotels", "hospedagem"}):
-            return await step.begin_dialog(HotelDialog.__name__)
-
-        if any(k in text for k in {"oi", "ola", "olá", "bom dia", "boa tarde", "obrigado", "vlw"}):
-            return await step.begin_dialog(SmalltalkDialog.__name__)
-
-        
+        # fallback
         await step.context.send_activity(
-            "Não entendi. Você pode dizer, por exemplo:\n"
-            "• `voo GRU GIG 02/12/2025`\n"
-            "• `hotel Recife 05/02/2026 09/02/2026`\n"
-            "Ou digite `menu` para ver as opções."
+            "Não entendi. Digite *menu*, *ajuda*, *voo*, *hotel* ou *consultas*."
         )
-        return await step.end_dialog()
-
-
-    async def _final_step(self, step: WaterfallStepContext) -> DialogTurnResult:
-      
         return await step.end_dialog()
