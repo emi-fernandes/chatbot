@@ -7,7 +7,7 @@ def make_menu(text: str = "Como posso ajudar?"):
         actions=[
             CardAction(title="✈️ Buscar voos",  type=ActionTypes.im_back, value="voo"),
             CardAction(title="🏨 Buscar hotéis", type=ActionTypes.im_back, value="hotel"),
-            CardAction(title="📋 Consultas e cancelamentos", type=ActionTypes.im_back, value="consultas"),
+            CardAction(title="📋 Consultas", type=ActionTypes.im_back, value="consultas"),
             CardAction(title="❓ Ajuda", type=ActionTypes.im_back, value="ajuda"),
         ],
         text=text,

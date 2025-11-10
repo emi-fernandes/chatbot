@@ -1,6 +1,7 @@
 from botbuilder.core import MessageFactory
 from botbuilder.dialogs import ComponentDialog, WaterfallDialog, WaterfallStepContext, DialogTurnResult
 from botbuilder.dialogs.prompts import TextPrompt, PromptOptions
+from bot.core.http_client import create_reserva_hotel
 
 
 class HotelDialog(ComponentDialog):
@@ -31,7 +32,22 @@ class HotelDialog(ComponentDialog):
                                  PromptOptions(prompt=MessageFactory.text("Check-out (AAAA-MM-DD)?")))
 
     async def finish(self, step: WaterfallStepContext) -> DialogTurnResult:
-        step.values["checkout"] = (step.result or "").strip()
-        city = step.values["city"]; ci = step.values["checkin"]; co = step.values["checkout"]
-        await step.context.send_activity(f"Procurando hotéis em **{city}** de **{ci}** a **{co}**…")
+        city = step.values["city"]
+        ci   = step.values["checkin"]
+        co   = (step.result or "").strip()
+
+        try:
+            resp = create_reserva_hotel(city, ci, co, hotel_name="BOT", price_brl=0.0)
+        except Exception as e:
+            resp = {"error": str(e)}
+
+        if isinstance(resp, dict) and "id" in resp:
+            await step.context.send_activity(
+                f"✅ Reserva de hotel **{resp['id']}** criada em **{city}** "
+                f"de **{ci}** a **{co}**."
+            )
+        else:
+            err = (resp.get("error") if isinstance(resp, dict) else "erro desconhecido")
+            await step.context.send_activity(f"Não consegui salvar agora: {err}")
+
         return await step.end_dialog()
