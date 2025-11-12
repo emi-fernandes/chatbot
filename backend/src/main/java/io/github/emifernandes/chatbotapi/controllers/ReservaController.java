@@ -22,6 +22,21 @@ public class ReservaController {
     public ReservaController(ReservaVooRepository vooRepo, ReservaHotelRepository hotelRepo) {
         this.vooRepo = vooRepo; this.hotelRepo = hotelRepo;
     }
+    @DeleteMapping("/voos/{id}")
+    public ResponseEntity<Void> deleteVoo(@PathVariable Long id) {
+        if (!vooRepo.existsById(id)) return ResponseEntity.notFound().build();
+        vooRepo.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
+
+    @DeleteMapping("/hoteis/{id}")
+    public ResponseEntity<Void> deleteHotel(@PathVariable Long id) {
+        if (!hotelRepo.existsById(id)) return ResponseEntity.notFound().build();
+        hotelRepo.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
 
     @GetMapping("/voos")
     public ResponseEntity<List<ReservaVoo>> listVoo() { return ResponseEntity.ok(vooRepo.findAll()); }

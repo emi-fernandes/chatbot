@@ -11,6 +11,7 @@ from botbuilder.dialogs import (
 from .flight_dialog import FlightDialog
 from .hotel_dialog import HotelDialog
 from .consulta_dialog import ConsultaDialog
+from bot.dialogs.consulta_dialog import ConsultaDialog
 
 
 def _norm(s): 
@@ -25,7 +26,7 @@ class MainDialog(ComponentDialog):
         self.consulta_dialog = ConsultaDialog()
         self.flight_dialog   = FlightDialog()
         self.hotel_dialog    = HotelDialog()
-
+    
         # registra subdiálogos
         self.add_dialog(self.consulta_dialog)
         self.add_dialog(self.flight_dialog)
@@ -88,6 +89,9 @@ class MainDialog(ComponentDialog):
                 "Ou digite *menu* para ver os botões."
             )
             return await step.end_dialog()
+        
+        if any(k in text for k in {"consulta","consultas","cancelamento","deletar reserva","excluir reserva","cancelar reserva"}):
+            return await step.begin_dialog(ConsultaDialog.__name__)
 
         # fallback
         await step.context.send_activity(

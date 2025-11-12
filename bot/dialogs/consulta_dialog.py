@@ -1,79 +1,115 @@
-from botbuilder.dialogs import (
-    ComponentDialog, WaterfallDialog, WaterfallStepContext, DialogTurnResult
-)
-from botbuilder.dialogs.prompts import TextPrompt, PromptOptions
 from botbuilder.core import MessageFactory
-from bot.core.http_client import get_reserva_voo, get_reserva_hotel
+from botbuilder.dialogs import (
+    ComponentDialog, WaterfallDialog, WaterfallStepContext, DialogTurnResult,
+    TextPrompt, ChoicePrompt, ConfirmPrompt, PromptOptions
+)
+from botbuilder.dialogs.choices import Choice
+import aiohttp
 
+from bot.config import DefaultConfig  
+CONFIG = DefaultConfig()
+
+def _is_int(text: str) -> bool:
+    try:
+        int(text); return True
+    except Exception:
+        return False
 
 class ConsultaDialog(ComponentDialog):
     def __init__(self):
         super().__init__(ConsultaDialog.__name__)
-        self.add_dialog(TextPrompt("TIPO_PROMPT"))
-        self.add_dialog(TextPrompt("ID_PROMPT"))
-        self.add_dialog(WaterfallDialog("WF", [self.ask_tipo, self.ask_id, self.show]))
-        self.initial_dialog_id = "WF"
 
-    async def ask_tipo(self, step: WaterfallStepContext) -> DialogTurnResult:
+        self.add_dialog(TextPrompt("idPrompt"))
+        self.add_dialog(ChoicePrompt("tipoPrompt"))
+        self.add_dialog(ChoicePrompt("acaoPrompt"))
+        self.add_dialog(ConfirmPrompt("confirmPrompt"))
+
+        self.add_dialog(WaterfallDialog("wf", [
+            self.perguntar_tipo,
+            self.perguntar_id,
+            self.perguntar_acao,
+            self.confirmar_se_necessario,
+            self.executar,
+        ]))
+        self.initial_dialog_id = "wf"
+
+    async def perguntar_tipo(self, step: WaterfallStepContext) -> DialogTurnResult:
         return await step.prompt(
-            "TIPO_PROMPT",
-            PromptOptions(prompt=MessageFactory.text("A reserva é de **voo** ou **hotel**?"))
+            "tipoPrompt",
+            PromptOptions(
+                prompt=MessageFactory.text("Você quer consultar reserva de **voo** ou **hotel**?"),
+                choices=[Choice("voo"), Choice("hotel")],
+            ),
         )
 
-    async def ask_id(self, step: WaterfallStepContext) -> DialogTurnResult:
-        step.values["tipo"] = (step.result or "").strip().lower()
+    async def perguntar_id(self, step: WaterfallStepContext) -> DialogTurnResult:
+        step.values["tipo"] = step.result.value  # "voo" | "hotel"
         return await step.prompt(
-            "ID_PROMPT",
-            PromptOptions(prompt=MessageFactory.text("Qual o **ID** da sua reserva?"))
+            "idPrompt",
+            PromptOptions(
+                prompt=MessageFactory.text("Informe o **ID** da reserva (número)."),
+                retry_prompt=MessageFactory.text("ID inválido. Digite apenas números, por favor."),
+            ),
         )
 
-    async def show(self, step: WaterfallStepContext) -> DialogTurnResult:
-        tipo = step.values["tipo"]
-        rid  = (step.result or "").strip()
+    async def perguntar_acao(self, step: WaterfallStepContext) -> DialogTurnResult:
+        rid = (step.result or "").strip()
+        if not _is_int(rid):
+            return await step.replace_dialog(self.id)
+        step.values["reserva_id"] = int(rid)
 
-        if tipo.startswith("vo"):
-            resp = get_reserva_voo(rid)
-            if isinstance(resp, dict) and "error" in resp:
-                await step.context.send_activity(f"❌ Erro ao buscar voo: {resp['error']}")
-                return await step.end_dialog()
-            if resp is None:
-                await step.context.send_activity("❌ Voo não encontrado.")
-                return await step.end_dialog()
+        return await step.prompt(
+            "acaoPrompt",
+            PromptOptions(
+                prompt=MessageFactory.text("O que deseja fazer?"),
+                choices=[Choice("detalhes"), Choice("cancelar"), Choice("deletar")],
+            ),
+        )
 
-            msg = [
-                "🧾 **Reserva de Voo**",
-                f"ID: {resp.get('id', '-')}",
-                f"Origem: {resp.get('origin', '-')}",
-                f"Destino: {resp.get('destination', '-')}",
-                f"Data: {resp.get('date', '-')}",
-                f"Companhia: {resp.get('airline', '-')}",
-                f"Preço (BRL): {resp.get('priceBRL', '-')}",
-                f"Passageiro: {resp.get('passengerName', '-')}",
-            ]
-            await step.context.send_activity("\n".join(msg))
-            return await step.end_dialog()
+    async def confirmar_se_necessario(self, step: WaterfallStepContext) -> DialogTurnResult:
+        acao = step.result.value.lower()
+        step.values["acao"] = "cancelar" if acao in {"cancelar", "deletar", "excluir", "apagar"} else "detalhes"
 
-        if tipo.startswith("ho"):
-            resp = get_reserva_hotel(rid)
-            if isinstance(resp, dict) and "error" in resp:
-                await step.context.send_activity(f"❌ Erro ao buscar hotel: {resp['error']}")
-                return await step.end_dialog()
-            if resp is None:
-                await step.context.send_activity("❌ Hotel não encontrado.")
-                return await step.end_dialog()
+        if step.values["acao"] == "cancelar":
+            msg = f"Confirma excluir/cancelar a reserva **{step.values['tipo']}** #{step.values['reserva_id']}?"
+            return await step.prompt("confirmPrompt", PromptOptions(prompt=MessageFactory.text(msg)))
+        return await step.next(True)  # pula confirmação para detalhes
 
-            msg = [
-                "🧾 **Reserva de Hotel**",
-                f"ID: {resp.get('id', '-')}",
-                f"Cidade: {resp.get('city', '-')}",
-                f"Check-in: {resp.get('checkin', '-')}",
-                f"Check-out: {resp.get('checkout', '-')}",
-                f"Hotel: {resp.get('hotelName', '-')}",
-                f"Preço (BRL): {resp.get('priceBRL', '-')}",
-                f"Hóspede: {resp.get('guestName', '-')}",
-            ]
-            await step.context.send_activity("\n".join(msg))
-            return await step.end_dialog()
+    async def executar(self, step: WaterfallStepContext) -> DialogTurnResult:
+        tipo = step.values["tipo"]               # "voo" | "hotel"
+        reserva_id = step.values["reserva_id"]   # int
+        acao = step.values["acao"]               # "detalhes" | "cancelar"
+        base = CONFIG.JAVA_API_BASE.rstrip("/")  # ex: http://localhost:8080
 
-        await step.context.send_activity("Tipo inválido. Digite *voo* ou *hotel*.")
+        path = f"/reservas/{'voos' if tipo=='voo' else 'hoteis'}/{reserva_id}"
+        url = f"{base}{path}"
+
+        try:
+            async with aiohttp.ClientSession() as s:
+                if acao == "detalhes":
+                    async with s.get(url) as r:
+                        if r.status == 200:
+                            data = await r.json()
+                            await step.context.send_activity(f"📄 Detalhes: {data}")
+                        elif r.status == 404:
+                            await step.context.send_activity("Reserva não encontrada.")
+                        else:
+                            await step.context.send_activity(f"Não foi possível obter detalhes. ({r.status})")
+                else:
+                    # acao == "cancelar"
+                    if step.result is not True:  # usuário não confirmou
+                        await step.context.send_activity("Cancelamento abortado.")
+                        return await step.end_dialog()
+
+                    async with s.delete(url) as r:
+                        if r.status in (200, 204):
+                            await step.context.send_activity("✅ Reserva cancelada/excluída com sucesso.")
+                        elif r.status == 404:
+                            await step.context.send_activity("Reserva não encontrada.")
+                        else:
+                            await step.context.send_activity(f"Não foi possível cancelar. ({r.status})")
+
+        except Exception as e:
+            await step.context.send_activity(f"Falha ao contatar a API: {e}")
+
         return await step.end_dialog()
