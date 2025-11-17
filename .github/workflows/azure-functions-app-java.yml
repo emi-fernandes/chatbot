@@ -1,0 +1,61 @@
+# Nome do seu workflow
+name: Deploy Java to Azure Functions
+
+# Gatilho: Quando o workflow deve rodar?
+# Aqui, ele roda em cada push para a branch 'main'
+on:
+  push:
+    branches:
+      - main
+  # Opcional: permite rodar manualmente pela aba 'Actions' do GitHub
+  workflow_dispatch:
+
+# Variáveis de ambiente: Defina o nome do seu App de Função e a versão do Java
+env:
+  AZURE_FUNCTIONAPP_NAME: <chatbot-viagens-clu> 
+  JAVA_VERSION: '17' 
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write # Permite ao workflow obter um token OIDC
+      contents: read  # Permite ao workflow ler o seu código
+
+    steps:
+      # 1. Baixa o código do seu repositório
+      - name: 'Checkout GitHub Action'
+        uses: actions/checkout@v4
+
+      # 2. Configura o ambiente Java (JDK)
+      - name: 'Set up Java'
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'microsoft' # Recomendado para Azure
+
+      # 3. Constroí o projeto com Maven
+      # Este passo assume que seu pom.xml está configurado com o 
+      # 'azure-functions-maven-plugin'
+      - name: 'Build with Maven'
+        run: mvn clean package azure-functions:package
+        # O 'clean' limpa builds antigos
+        # O 'package' cria o .jar
+        # O 'azure-functions:package' prepara os arquivos para deploy no formato do Functions
+
+      # 4. Faz login no Azure
+      # Este passo REQUER um segredo chamado AZURE_CREDENTIALS
+      - name: 'Login to Azure'
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # 5. Implanta (Deploy) no Azure Functions
+      - name: 'Deploy to Azure Functions'
+        uses: azure/functions-action@v1
+        with:
+          # O nome do seu App de Função (definido na variável env)
+          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+          # O caminho para o pacote que o Maven criou no passo 3
+          # Este é o caminho padrão que o plugin do Maven usa
+          package: 'target/azure-functions/${{ env.AZURE_FUNCTIONAPP_NAME }}'
