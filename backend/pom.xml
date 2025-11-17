@@ -68,7 +68,29 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
       </plugin>
-
+<plugin>
+    <groupId>com.microsoft.azure</groupId>
+    <artifactId>azure-functions-maven-plugin</artifactId>
+    <version>1.23.0</version> <configuration>
+       <appName>chatbot-language-emilly</appName>
+        <resourceGroup>ibmec_turma_terca</resourceGroup> <appServicePlanName>language</appServicePlanName> <region>canadacentral</region> <runtime>
+           <os>linux</os>
+           <javaVersion>17</javaVersion>
+        </runtime>
+        
+        <deployment>
+           <resources>
+             <resource>
+               <directory>${project.basedir}</directory>
+               <includes>
+                 <include>host.json</include>
+                 <include>local.settings.json</include>
+               </includes>
+             </resource>
+           </resources>
+         </deployment>
+    </configuration>
+</plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
