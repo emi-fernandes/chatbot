@@ -3,6 +3,8 @@ package io.github.emifernandes.chatbotapi.controllers;
 import io.github.emifernandes.chatbotapi.models.*;
 import io.github.emifernandes.chatbotapi.repository.*;
 import jakarta.validation.Valid;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,12 +18,13 @@ import java.util.List;
 @RequestMapping("/reservas")
 public class ReservaController {
 
-    private final ReservaVooRepository vooRepo;
-    private final ReservaHotelRepository hotelRepo;
+    @Autowired(required = false)
+    private  ReservaVooRepository vooRepo;
+    
+    @Autowired(required = false)
+    private  ReservaHotelRepository hotelRepo;
 
-    public ReservaController(ReservaVooRepository vooRepo, ReservaHotelRepository hotelRepo) {
-        this.vooRepo = vooRepo; this.hotelRepo = hotelRepo;
-    }
+    
     @DeleteMapping("/voos/{id}")
     public ResponseEntity<Void> deleteVoo(@PathVariable Long id) {
         if (!vooRepo.existsById(id)) return ResponseEntity.notFound().build();

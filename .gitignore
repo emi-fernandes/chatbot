@@ -1,6 +1,4 @@
-﻿@"
-*.log
-
+﻿*.log
 
 target/
 .mvn/
@@ -15,4 +13,6 @@ venv/
 
 .DS_Store
 Thumbs.db
-"@ | Out-File -Encoding utf8 .\.gitignore
+
+# NÃO versionar configs locais
+backend/src/main/resources/application.properties

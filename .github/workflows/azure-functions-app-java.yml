@@ -12,7 +12,7 @@ on:
 
 # Variáveis de ambiente: Defina o nome do seu App de Função e a versão do Java
 env:
-  AZURE_FUNCTIONAPP_NAME: <chatbot-viagens-clu> 
+  AZURE_FUNCTIONAPP_NAME: <chatbot-viagens-clu-> 
   JAVA_VERSION: '17' 
 jobs:
   build-and-deploy:

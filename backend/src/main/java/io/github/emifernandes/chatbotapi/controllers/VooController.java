@@ -5,6 +5,8 @@ import io.github.emifernandes.chatbotapi.repository.VooRepository;
 import io.github.emifernandes.chatbotapi.services.VooSearchService;
 import io.github.emifernandes.chatbotapi.services.dto.VooOffer;
 import jakarta.validation.Valid;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,13 +19,12 @@ import java.util.List;
 @RequestMapping("/voos")
 public class VooController {
 
-    private final VooRepository repo;
-    private final VooSearchService service;
+    
+    @Autowired(required = false)
+    private  VooRepository repo;
+    private  VooSearchService service;
 
-    public VooController(VooRepository repo, VooSearchService service) {
-        this.repo = repo;
-        this.service = service;
-    }
+    
 
     @GetMapping
     public ResponseEntity<List<Voo>> list() {

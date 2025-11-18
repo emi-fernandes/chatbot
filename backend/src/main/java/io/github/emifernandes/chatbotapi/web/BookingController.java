@@ -5,9 +5,10 @@ import io.github.emifernandes.chatbotapi.repo.BookingRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
+import java.util.List;
 
 @RestController
+@RequestMapping("/booking")
 public class BookingController {
 
     private final BookingRepository repo;
@@ -16,13 +17,14 @@ public class BookingController {
         this.repo = repo;
     }
 
-    @PostMapping("/booking")
-    public ResponseEntity<?> create(@RequestBody BookingRequest req) {
-        Booking b = new Booking();
-        b.setOrigem(req.origem());
-        b.setDestino(req.destino());
-        b.setData(req.data());
-        Booking saved = repo.save(b);
+    @PostMapping
+    public ResponseEntity<Booking> create(@RequestBody Booking booking) {
+        Booking saved = repo.save(booking);
         return ResponseEntity.ok(saved);
+    }
+
+    @GetMapping
+    public List<Booking> list() {
+        return repo.findAll();
     }
 }
