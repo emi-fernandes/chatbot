@@ -22,10 +22,10 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: 'microsoft'
+          distribution: 'temurim'
 
       - name: Build with Maven
-        run: mvn clean install
+        run: mvn clean install -f ./backend/pom.xml
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -60,4 +60,5 @@ jobs:
           app-name: 'chatbot-viagens-clu-'
           slot-name: 'Production'
           package: '*.jar'
+
           
