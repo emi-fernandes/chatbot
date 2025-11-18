@@ -31,8 +31,8 @@ jobs:
       - name: 'Set up Java'
         uses: actions/setup-java@v4
         with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'microsoft' # Recomendado para Azure
+          java-version: '17'
+          distribution: 'temurin'
 
       # 3. Constroí o projeto com Maven
       # Este passo assume que seu pom.xml está configurado com o 
